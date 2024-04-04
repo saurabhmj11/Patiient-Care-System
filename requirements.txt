@@ -6,4 +6,4 @@ streamlit==1.13.0
 scikit-learn==0.24.2
 mlflow==2.2.2
 pyarrow==11.0.0
-
+geopy==2.2.0
