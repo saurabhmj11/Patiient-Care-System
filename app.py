@@ -24,7 +24,7 @@ def get_nearest_hospital_address(user_location):
         return None
 
 # Define the full absolute file path to the model file
-model_file_path = "F:\\content\\dataa science\\The-Grand-Complete-Data-Science-Materials-main\\ML Projects\\Patient_care_classification_system\\random_forest_model.pkl"
+model_file_path = "random_forest_model.pkl"
 
 # Load the trained Random Forest model from the pickle file
 with open(model_file_path, "rb") as model_file:
