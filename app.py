@@ -1,11 +1,17 @@
 import streamlit as st
 import pandas as pd
 import base64
-
 from joblib import load
+import streamlit as st
 
-# Load the trained Random Forest model
-rf_model = load("random_forest_model.joblib")
+try:
+    # Load the trained Random Forest model
+    rf_model = load("random_forest_model.joblib")
+except FileNotFoundError:
+    st.error("Error: Model file not found. Please ensure that the model file exists.")
+except Exception as e:
+    st.error(f"An error occurred: {e}")
+
 
 
 # Define function to predict care type
