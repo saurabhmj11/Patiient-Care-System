@@ -1,159 +1,152 @@
-import numpy as np
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import pickle
-from geolocation import get_geolocation  # Import the get_geolocation function from geolocation.py
-from geopy.geocoders import Nominatim
-
-# Set page configuration
-st.set_page_config(page_title="Patient Care Classification System", page_icon=":hospital:")
-
-# Function to get the address of the nearest hospital or doctor based on user's location
-def get_nearest_hospital_address(user_location):
-    # Initialize Nominatim geocoder
-    geolocator = Nominatim(user_agent="hospital_address")
-    
-    # Search for the nearest hospital
-    location = geolocator.reverse(user_location, addressdetails=True)
-    
-    # Extract and return the hospital address
-    if location:
-        hospital_address = location.address
-        return hospital_address
-    else:
-        return None
-
-# Define the full absolute file path to the model file
-model_file_path = "https://github.com/saurabhmj11/Patiient-Care-System/blob/1e45138f788ab83a1d9d48e3c188cee09160a2e8/random_forest_model.pkl"
+import base64
 
 # Load the trained Random Forest model from the pickle file
-with open(model_file_path, "rb") as model_file:
+with open("random_forest_model.pkl", "rb") as model_file:
     rf_model = pickle.load(model_file)
 
-# Set dark theme
-st.markdown(
-    """
-    <style>
-    body {
-        color: #f8f9fa;
-        background-color: #272727;
-    }
-    .stNumberInput > div > div > input {
-        color: #f8f9fa;
-        background-color: #343a40;
-        border-color: #6c757d;
-    }
-    .stTextInput > div > div > input {
-        color: #f8f9fa;
-        background-color: #343a40;
-        border-color: #6c757d;
-    }
-    .stButton>button {
-        color: #f8f9fa;
-        background-color: #007bff;
-        border-color: #007bff;
-    }
-    .stButton>button:hover {
-        background-color: #0056b3;
-        border-color: #0056b3;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# Define function to predict care type
+def predict_care(user_data):
+    # Remove "Patient's Name" and "Patient's Address" from user data
+    user_data.pop("Patient's Name", None)
+    user_data.pop("Patient's Address", None)
+    
+    user_df = pd.DataFrame(user_data, index=[0])
+    prediction = rf_model.predict(user_df)[0]
+    return "In Care (Hospitalization) Required" if prediction == 1 else "Out Care (Home Care) Required"
 
-# Title and subtitle
+# Define function to create a download link for DataFrame as CSV
+def download_csv(dataframe, filename):
+    csv = dataframe.to_csv(index=False)
+    b64 = base64.b64encode(csv.encode()).decode()
+    href = f'<a href="data:file/csv;base64,{b64}" download="{filename}.csv">Download Result</a>'
+    return href
+
+# Define UI layout and style
+st.set_page_config(
+    page_title="Patient Care Classification System",
+    page_icon=":hospital:",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+st.markdown(
+"""
+<style>
+body {
+    font-family: Arial, sans-serif;
+    color: #333333;
+    background-color: #f8f9fa;
+}
+.sidebar .sidebar-content {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+.sidebar .sidebar-content:hover {
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+}
+.sidebar .sidebar-content::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%);
+    z-index: 1;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    border-radius: 10px;
+}
+.sidebar .sidebar-content:hover::before {
+    height: 150%;
+}
+.sidebar .sidebar-content > div {
+    position: relative;
+    z-index: 2;
+}
+.footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: #007bff;
+    color: #ffffff;
+    text-align: center;
+    padding: 10px 0;
+}
+.logo {
+    display: flex;
+    align-items: center;
+}
+.logo img {
+    width: 50px;
+    height: auto;
+    margin-right: 10px;
+}
+.title {
+    color: #007bff;
+}
+</style>
+"""
+, unsafe_allow_html=True)
+
+# Main content
 st.title("Patient Care Classification System")
 st.write("Predict whether home care or hospitalization is required based on patient's data.")
 
-# User input section
-st.sidebar.subheader("Enter Patient's Data")
-st_HAEMATOCRIT = st.sidebar.number_input("HAEMATOCRIT Value", format="%f", step=0.1)
-st_HAEMOGLOBINS = st.sidebar.number_input("HAEMOGLOBINS Value", format="%f", step=0.1)
-st_ERYTHROCYTE = st.sidebar.number_input("ERYTHROCYTE Value", format="%f", step=0.1)
-st_LEUCOCYTE = st.sidebar.number_input("LEUCOCYTE Value", format="%f", step=0.1)
-st_THROMBOCYTE = st.sidebar.number_input("THROMBOCYTE Value", format="%f", step=0.1)
-st_MCH = st.sidebar.number_input("MCH Value", format="%f", step=0.1)
-st_MCHC = st.sidebar.number_input("MCHC Value", format="%f", step=0.1)
-st_MCV = st.sidebar.number_input("MCV Value", format="%f", step=0.1)
-st_AGE = st.sidebar.number_input("AGE Value", format="%d", min_value=0)
-st_SEX = st.sidebar.radio("SEX", options=["Male", "Female"])
+# Sidebar for user input
+st.sidebar.header("Enter Patient's Data")
 
-# Convert SEX to numerical value
-sex_mapping = {"Male": 1, "Female": 0}
-st_SEX_numeric = sex_mapping[st_SEX]
+with st.sidebar:
+    st.markdown("<div class='sidebar-content'>", unsafe_allow_html=True)
 
-# User data
-user_data = {
-    "HAEMATOCRIT": st_HAEMATOCRIT,
-    "HAEMOGLOBINS": st_HAEMOGLOBINS,
-    "ERYTHROCYTE": st_ERYTHROCYTE,
-    "LEUCOCYTE": st_LEUCOCYTE,
-    "THROMBOCYTE": st_THROMBOCYTE,
-    "MCH": st_MCH,
-    "MCHC": st_MCHC,
-    "MCV": st_MCV,
-    "AGE": st_AGE,
-    "SEX": st_SEX_numeric,
-}
+patient_name = st.text_input("Patient's Name")
+patient_address = st.text_area("Patient's Address")
 
-# Display user input summary
-st.sidebar.subheader("User Input Summary")
-st.sidebar.write(pd.DataFrame(user_data, index=["Value"]))
+haematocrit = st.number_input("HAEMATOCRIT Value", format="%f", step=0.1)
+haemoglobins = st.number_input("HAEMOGLOBINS Value", format="%f", step=0.1)
+erythrocyte = st.number_input("ERYTHROCYTE Value", format="%f", step=0.1)
+leucocyte = st.number_input("LEUCOCYTE Value", format="%f", step=0.1)
+thrombocyte = st.number_input("THROMBOCYTE Value", format="%f", step=0.1)
+mch = st.number_input("MCH Value", format="%f", step=0.1)
+mchc = st.number_input("MCHC Value", format="%f", step=0.1)
+mcv = st.number_input("MCV Value", format="%f", step=0.1)
+age = st.number_input("AGE Value", format="%d", min_value=0)
+sex = st.selectbox("SEX", options=["Male", "Female"])
 
-# Make predictions using the loaded Random Forest model
-user_df = pd.DataFrame(user_data, index=[0])
-rf_predict_user_data = rf_model.predict(user_df)
+# Predict button
+if st.button("Predict"):
+    user_data = {
+        "HAEMATOCRIT": haematocrit,
+        "HAEMOGLOBINS": haemoglobins,
+        "ERYTHROCYTE": erythrocyte,
+        "LEUCOCYTE": leucocyte,
+        "THROMBOCYTE": thrombocyte,
+        "MCH": mch,
+        "MCHC": mchc,
+        "MCV": mcv,
+        "AGE": age,
+        "SEX": 1 if sex == "Male" else 0
+    }
+    prediction = predict_care(user_data)
+    result_df = pd.DataFrame(user_data, index=[0])
+    result_df["Prediction"] = prediction
+    st.success(f"Prediction: {prediction}")
 
-# Determine the action to be taken based on the prediction
-if rf_predict_user_data == 0:
-    care = "Out Care (Home Care) Required"
-else:
-    care = "In Care (Hospitalization) Required"
+    # Download button for result
+    st.markdown(download_csv(result_df, "prediction_result"), unsafe_allow_html=True)
 
-# Display the prediction result
-st.subheader("Prediction Result")
-if rf_predict_user_data == 0:
-    st.success(care)
-else:
-    st.error(care)
-
-# Get the user's location and display nearest hospital address if hospitalization is required
-if rf_predict_user_data == 1:
-    st.sidebar.subheader("Enter Your Address")
-    user_address = st.sidebar.text_input("Address")
-    if user_address:
-        geolocator = Nominatim(user_agent="hospital_address")
-        user_location = geolocator.geocode(user_address)
-        if user_location:
-            user_latitude = user_location.latitude
-            user_longitude = user_location.longitude
-            user_location_str = f"Latitude: {user_latitude}, Longitude: {user_longitude}"
-            st.sidebar.write("Your Location:", user_location_str)
-            hospital_address = get_nearest_hospital_address((user_latitude, user_longitude))
-            if hospital_address:
-                st.sidebar.subheader("Nearest Hospital Address")
-                st.sidebar.write(hospital_address)
-            else:
-                st.sidebar.error("No hospital found near your location.")
+st.sidebar.markdown("</div>", unsafe_allow_html=True)
 
 # Footer
 st.markdown(
-    """
-    <style>
-    .footer {
-        position: fixed;
-        bottom: 0;
-        width: 100%;
-        text-align: center;
-        background-color: #272727;
-        color: #f8f9fa;
-        padding: 10px 0;
-    }
-    </style>
-    <div class="footer">
-        Developed by Saurabh Lokhande
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+"""
+<div class="footer">
+    <p>Made with ❤️ by Saurabh Lokhande</p>
+</div>
+"""
+, unsafe_allow_html=True)
