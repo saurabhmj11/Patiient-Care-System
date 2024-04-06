@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
-import pickle
 import base64
 
-# Load the trained Random Forest model from the pickle file
-with open("random_forest_model.pkl", "rb") as model_file:
-    rf_model = pickle.load(model_file)
+from joblib import load
+
+# Load the trained Random Forest model
+rf_model = load("random_forest_model.joblib")
+
 
 # Define function to predict care type
 def predict_care(user_data):
